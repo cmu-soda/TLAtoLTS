@@ -17,6 +17,7 @@ import java.util.stream.Collectors;
 
 import tla2sany.semantic.ExprNode;
 import tla2sany.semantic.OpDeclNode;
+import tlc2.LTSBuilder;
 import tlc2.TLCGlobals;
 import tlc2.output.EC;
 import tlc2.output.MP;
@@ -47,6 +48,7 @@ import util.UniqueString;
 // the name resolver and support for the external specification object has been added
 public class ModelChecker extends AbstractChecker
 {
+	public LTSBuilder ltsBuilder;
 
 	protected static final boolean ActionCoverage = TLCGlobals.Coverage.isActionEnabled();
 	/**
@@ -72,8 +74,8 @@ public class ModelChecker extends AbstractChecker
 
     /* Constructors  */
     public ModelChecker(ITool tool, String metadir, final IStateWriter stateWriter, boolean deadlock, String fromChkpt,
-            final Future<FPSet> future, long startTime) throws EvalException, IOException, InterruptedException, ExecutionException {
-    	this(tool, metadir, stateWriter, deadlock, fromChkpt, startTime);
+            final Future<FPSet> future, long startTime, LTSBuilder builder) throws EvalException, IOException, InterruptedException, ExecutionException {
+    	this(tool, metadir, stateWriter, deadlock, fromChkpt, startTime, builder);
     	this.theFPSet = future.get();
 
         // Initialize all the workers:
@@ -86,8 +88,8 @@ public class ModelChecker extends AbstractChecker
     }
     
     public ModelChecker(ITool tool, String metadir, final IStateWriter stateWriter, boolean deadlock, String fromChkpt,
-            final FPSetConfiguration fpSetConfig, long startTime) throws EvalException, IOException {
-    	this(tool, metadir, stateWriter, deadlock, fromChkpt, startTime);
+            final FPSetConfiguration fpSetConfig, long startTime, LTSBuilder builder) throws EvalException, IOException {
+    	this(tool, metadir, stateWriter, deadlock, fromChkpt, startTime, builder);
     	this.theFPSet = FPSetFactory.getFPSet(fpSetConfig).init(TLCGlobals.getNumWorkers(), metadir, tool.getRootName());
 
         // Initialize all the workers:
@@ -106,9 +108,11 @@ public class ModelChecker extends AbstractChecker
      * @param specObj external SpecObj added to enable to work on existing specification 
      */
 	private ModelChecker(ITool tool, String metadir, final IStateWriter stateWriter, boolean deadlock, String fromChkpt,
-			long startTime) throws EvalException, IOException    {
+			long startTime, LTSBuilder builder) throws EvalException, IOException    {
         // call the abstract constructor
         super(tool, metadir, stateWriter, deadlock, fromChkpt, startTime);
+        
+        this.ltsBuilder = builder;
 
         this.theStateQueue = IStateQueue.get(this.metadir);
 
@@ -1155,12 +1159,15 @@ public class ModelChecker extends AbstractChecker
 			}
 			
 			try {
+				boolean isGoodState = true;
+				
 				// Check if the state is a legal state
 				if (!tool.isGoodState(curState)) {
-					MP.printError(EC.TLC_INITIAL_STATE, new String[]{ "current state is not a legal state", curState.toString() });
-					this.errState = curState;
-					returnValue = EC.TLC_INITIAL_STATE;
-					throw new InvariantViolatedException();
+					isGoodState = false;
+					//MP.printError(EC.TLC_INITIAL_STATE, new String[]{ "current state is not a legal state", curState.toString() });
+					//this.errState = curState;
+					//returnValue = EC.TLC_INITIAL_STATE;
+					//throw new InvariantViolatedException();
 				}
 				boolean inModel = tool.isInModel(curState);
 				boolean seen = false;
@@ -1186,22 +1193,30 @@ public class ModelChecker extends AbstractChecker
 							MP.printError(EC.TLC_INVARIANT_VIOLATED_INITIAL,
 									new String[] { tool.getInvNames()[j].toString(), tool.evalAlias(curState, curState).toString() });
 							if (!TLCGlobals.continuation) {
-								this.errState = curState;
-								returnValue = EC.TLC_INVARIANT_VIOLATED_INITIAL;
-								throw new InvariantViolatedException();
+								isGoodState = false;
+								//this.errState = curState;
+								//returnValue = EC.TLC_INVARIANT_VIOLATED_INITIAL;
+								//throw new InvariantViolatedException();
 							}
 						}
 					}
 					for (int j = 0; j < tool.getImpliedInits().length; j++) {
 						if (!tool.isValid(tool.getImpliedInits()[j], curState)) {
+							isGoodState = false;
 							// We get here because of implied-inits violation:
-							MP.printError(EC.TLC_PROPERTY_VIOLATED_INITIAL,
-									new String[] { tool.getImpliedInitNames()[j], tool.evalAlias(curState, curState).toString() });
-							this.errState = curState;
-							returnValue = EC.TLC_PROPERTY_VIOLATED_INITIAL;
-							throw new InvariantViolatedException();
+							//MP.printError(EC.TLC_PROPERTY_VIOLATED_INITIAL,
+							//		new String[] { tool.getImpliedInitNames()[j], tool.evalAlias(curState, curState).toString() });
+							//this.errState = curState;
+							//returnValue = EC.TLC_PROPERTY_VIOLATED_INITIAL;
+							//throw new InvariantViolatedException();
 						}
 					}
+				}
+				
+				if (isGoodState) {
+					ltsBuilder.addInitState(curState);
+				} else {
+					ltsBuilder.addBadInitState(curState);
 				}
 			} catch (InvariantViolatedException | Assert.TLCRuntimeException | EvalException e) {
 				// IVE gets thrown above when an Invariant is violated. TLCRuntimeException gets

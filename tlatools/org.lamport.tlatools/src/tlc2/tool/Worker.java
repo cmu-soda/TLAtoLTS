@@ -11,7 +11,9 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.LinkedList;
+import java.util.Map;
 
 import tla2sany.semantic.ExprNode;
 import tla2sany.semantic.OpDeclNode;
@@ -63,6 +65,8 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
 	private long statesGenerated;
 	private int unseenSuccessorStates = 0;
 	private volatile int maxLevel = 0;
+	
+	private Map<Long,Boolean> isBadState = null;
 
 	// SZ Feb 20, 2009: changed due to super type introduction
 	public Worker(int id, AbstractChecker tlc, ITool tool, String metadir, String specFile) throws IOException {
@@ -82,6 +86,19 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
 
 		this.filename = metadir + FileUtil.separator + specFile + "-" + myGetId();
 		this.raf = new BufferedRandomAccessFile(filename + TLCTrace.EXT, "rw");
+		
+		this.isBadState = new HashMap<>();
+	}
+	
+	private boolean isSuccStateBad(final TLCState currState, final TLCState succState) throws IOException, WorkerException, Exception {
+		final long key = succState.fingerPrint();
+		if (isBadState.containsKey(key)) {
+			return isBadState.get(key);
+		}
+		
+		final boolean currStateIsBad = this.doNextCheckInvariants(currState, succState) || this.doCheckImpliedOneState(succState);
+		isBadState.put(key, currStateIsBad);
+		return currStateIsBad;
 	}
 
 	/**
@@ -90,6 +107,7 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
    * updates the state set and state queue.
 	 */
 	public void run() {
+		isBadState = new HashMap<>();
 		TLCState curState = null;
 		try {
 			while (true) {
@@ -105,6 +123,23 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
 					return;
 				}
 				setCurrentState(curState);
+				
+				final Action[] actions = this.tlc.tool.getActions();
+                for (int i = 0; i < actions.length; ++i) {
+                	final Action action = actions[i];
+                	final StateVec succ = this.tool.getNextStates(action, curState);
+                	for (int j = 0; j < succ.size(); ++j) {
+                        final TLCState nextState = succ.elementAt(j);
+    					final boolean isGoodState = !isSuccStateBad(curState, nextState);
+                        tlc.ltsBuilder.addState(nextState);
+                        if (isGoodState) {
+                        	tlc.ltsBuilder.addTransition(curState, action, nextState);
+        				}
+        				else {
+        					tlc.ltsBuilder.addTransitionToErr(curState, action);
+        				}
+                	}
+                }
 				
 				if (this.checkLiveness || mode == Mode.MC_DEBUG) {
 					// Allocate iff liveness is checked.
@@ -425,7 +460,7 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
 				// It seems odd to subsume this under IVE, but we consider
 				// it an invariant that the values of all variables have to
 				// be defined.
-				throw new InvariantViolatedException();
+				//throw new InvariantViolatedException();
 			}
 			
 			// Check if state is excluded by a state or action constraint.
@@ -455,27 +490,31 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
 				}
 			}
 			
+			boolean nextStateGood = this.tool.isGoodState(succState);
+			
 			// Check if succState violates any invariant:
 			if (unseen) {
 				if (this.doNextCheckInvariants(curState, succState)) {
-					throw new InvariantViolatedException();
+					//throw new InvariantViolatedException();
+					nextStateGood = false;
 				}
 			}
 			
 			// Check if the state violates any implied action. We need to do it
 			// even if succState is not new.
 			if (this.doNextCheckImplied(curState, succState)) {
-				throw new InvariantViolatedException();
+				//throw new InvariantViolatedException();
+				nextStateGood = false;
 			}
 			
 			if (inModel && unseen) {
-				// The state is inModel, unseen and neither invariants
-				// nor implied actions are violated. It is thus eligible
-				// for further processing by other workers.
-				this.squeue.sEnqueue(succState);
-				if (variableCoverage) { 
-					for (final OpDeclNode odn : TLCState.vars) {
-						odn.count(succState.lookup(odn.getName()));
+				tlc.ltsBuilder.addState(succState);
+				if (nextStateGood || tlc.ltsBuilder.ignoreErrors()) {
+					this.squeue.sEnqueue(succState);
+					if (variableCoverage) { 
+						for (final OpDeclNode odn : TLCState.vars) {
+							odn.count(succState.lookup(odn.getName()));
+						}
 					}
 				}
 			}
@@ -554,7 +593,8 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
                 if (!tool.isValid(this.tool.getInvariants()[k], succState))
                 {
                     // We get here because of invariant violation:
-                	if (TLCGlobals.continuation) {
+                	//if (TLCGlobals.continuation) {
+                	if (tlc.ltsBuilder.ignoreErrors()) {
                         synchronized (this.tlc)
                         {
 							MP.printError(EC.TLC_INVARIANT_VIOLATED_BEHAVIOR,
@@ -605,6 +645,26 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
         {
         	this.tlc.doNextEvalFailed(curState, succState, EC.TLC_ACTION_PROPERTY_EVALUATION_FAILED,
 					this.tool.getImpliedActNames()[k], e);
+		}
+        return false;
+	}
+
+	private final boolean doCheckImpliedOneState(final TLCState state) throws IOException, WorkerException, Exception {
+		int k = 0;
+        try
+        {
+			for (k = 0; k < this.tool.getImpliedActions().length; k++)
+            {
+                if (!tool.isValid(this.tool.getImpliedActions()[k], state, TLCState.Empty))
+                {
+                    // We get here because of implied-action violation:
+                    return true;
+				}
+			}
+        } catch (Exception e)
+        {
+        	//this.tlc.doNextEvalFailed(curState, succState, EC.TLC_ACTION_PROPERTY_EVALUATION_FAILED,
+					//this.tool.getImpliedActNames()[k], e);
 		}
         return false;
 	}

@@ -1,4 +1,3 @@
-bin/
 class/
 test-class/
 .apt_generated/
@@ -36,3 +35,4 @@ test.jfr
 tlatools/org.lamport.tlatools/test-model/test.out
 .tlacache/
 .Rproj.user
+/.metadata/

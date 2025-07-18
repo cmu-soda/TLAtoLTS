@@ -219,6 +219,26 @@
 		    <artifactId>org.eclipse.lsp4j.jsonrpc</artifactId>
 		    <version>0.21.1</version>
 		</dependency>
+        <dependency>
+            <groupId>net.automatalib</groupId>
+            <artifactId>automata-core</artifactId>
+		    <version>0.11.0</version>
+        </dependency>
+        <dependency>
+            <groupId>net.automatalib</groupId>
+            <artifactId>automata-api</artifactId>
+		    <version>0.11.0</version>
+        </dependency>
+        <dependency>
+            <groupId>net.automatalib</groupId>
+            <artifactId>automata-commons-smartcollections</artifactId>
+		    <version>0.11.0</version>
+        </dependency>
+        <dependency>
+            <groupId>net.automatalib</groupId>
+            <artifactId>automata-commons-util</artifactId>
+		    <version>0.11.0</version>
+        </dependency>
       </dependencies>
 
       <!-- August 2014 - TL

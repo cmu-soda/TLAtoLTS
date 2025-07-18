@@ -18,6 +18,7 @@ import tla2sany.semantic.SemanticNode;
 import tla2sany.st.Location;
 import tla2sany.st.SyntaxTreeConstants;
 import tla2sany.st.TreeNode;
+import tlc2.Utils;
 import tlc2.tool.coverage.CostModel;
 import tlc2.util.Context;
 import tlc2.value.impl.Value;
@@ -87,6 +88,27 @@ public final class Action implements ToolGlobals, Serializable {
 
   public Action(ITool t, SemanticNode pred, Context con, OpDefNode opDef, boolean isInitPred, final boolean isInternal) {
 	  this(pred, con, opDef, isInitPred, isInternal);
+  }
+  
+  public String actionNameWithoutPrams() {
+	  return this.getName().toString();
+  }
+  
+  public String actionParams() {
+	  final Map<String, Value> mp = this.con.toStrMap();
+	  return Utils.toArrayList(getOpDef().getParams())
+			  .stream()
+		      .map(p -> p.getSignature()) // the signature is a key for the param value
+		      .map(k -> mp.get(k)) // look up the param value from the key
+		      .map(v -> v.toString().replace("\"", "")) // turn the value into a string
+		      .collect(Collectors.joining("."));
+  }
+  
+  public String actionNameWithParams() {
+	  // add param values to the action
+	  final String actName = this.actionNameWithoutPrams();
+	  final String actSuffix = this.actionParams();
+	  return actSuffix.isEmpty() ? actName : actName + "." + actSuffix;
   }
 
 /* Returns a string representation of this action.  */

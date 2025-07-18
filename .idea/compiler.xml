@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CompilerConfiguration">
+    <annotationProcessing>
+      <profile name="Maven default annotation processors profile" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+        <module name="org.lamport.tlatools.api" />
+        <module name="org.lamport.tlatools.feature" />
+        <module name="org.lamport.tlatools" />
+        <module name="org.lamport.tlatools.impl.distributed" />
+        <module name="org.lamport.tlatools.consumer.distributed" />
+      </profile>
+    </annotationProcessing>
+    <bytecodeTargetLevel>
+      <module name="org.lamport.tla.toolbox" target="1.5" />
+      <module name="org.lamport.tla.toolbox.doc" target="1.5" />
+      <module name="org.lamport.tla.toolbox.editor.basic" target="1.5" />
+      <module name="org.lamport.tla.toolbox.feature.base" target="1.5" />
+      <module name="org.lamport.tla.toolbox.feature.branding" target="1.5" />
+      <module name="org.lamport.tla.toolbox.feature.editor" target="1.5" />
+      <module name="org.lamport.tla.toolbox.feature.help" target="1.5" />
+      <module name="org.lamport.tla.toolbox.feature.jclouds" target="1.5" />
+      <module name="org.lamport.tla.toolbox.feature.jnlp" target="1.5" />
+      <module name="org.lamport.tla.toolbox.feature.prover" target="1.5" />
+      <module name="org.lamport.tla.toolbox.feature.standalone" target="1.5" />
+      <module name="org.lamport.tla.toolbox.feature.tla2tex" target="1.5" />
+      <module name="org.lamport.tla.toolbox.feature.tlc" target="1.5" />
+      <module name="org.lamport.tla.toolbox.feature.uitest" target="1.5" />
+      <module name="org.lamport.tla.toolbox.jclouds" target="1.5" />
+      <module name="org.lamport.tla.toolbox.jnlp" target="1.5" />
+      <module name="org.lamport.tla.toolbox.p2repository" target="1.5" />
+      <module name="org.lamport.tla.toolbox.product.product" target="1.5" />
+      <module name="org.lamport.tla.toolbox.product.standalone" target="1.5" />
+      <module name="org.lamport.tla.toolbox.rss" target="1.5" />
+      <module name="org.lamport.tla.toolbox.test" target="1.5" />
+      <module name="org.lamport.tla.toolbox.tool.prover" target="1.5" />
+      <module name="org.lamport.tla.toolbox.tool.tla2tex" target="1.5" />
+      <module name="org.lamport.tla.toolbox.tool.tla2tex.uitest" target="1.5" />
+      <module name="org.lamport.tla.toolbox.tool.tlc" target="1.5" />
+      <module name="org.lamport.tla.toolbox.tool.tlc.test" target="1.5" />
+      <module name="org.lamport.tla.toolbox.tool.tlc.ui" target="1.5" />
+      <module name="org.lamport.tla.toolbox.tool.tlc.ui.test" target="1.5" />
+      <module name="org.lamport.tla.toolbox.tool.tlc.ui.uitest" target="1.5" />
+      <module name="org.lamport.tla.toolbox.uitest" target="1.5" />
+    </bytecodeTargetLevel>
+  </component>
+</project>

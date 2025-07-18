@@ -34,49 +34,6 @@
 		<module>tlatools/org.lamport.tlatools.impl.distributed</module>
 		<module>tlatools/org.lamport.tlatools.consumer.distributed</module>
 
-		<!-- bundles -->
-		<module>toolbox/org.lamport.tla.toolbox.rss</module>
-		<module>toolbox/org.lamport.tla.toolbox</module>
-		<module>toolbox/org.lamport.tla.toolbox.jclouds</module>
-		<module>toolbox/org.lamport.tla.toolbox.jnlp</module>
-		<module>toolbox/org.lamport.tla.toolbox.doc</module>
-		<module>toolbox/org.lamport.tla.toolbox.editor.basic</module>
-		<module>toolbox/org.lamport.tla.toolbox.tool.prover</module>
-		<module>toolbox/org.lamport.tla.toolbox.tool.tla2tex</module>
-		<module>toolbox/org.lamport.tla.toolbox.tool.tlc</module>
-		<module>toolbox/org.lamport.tla.toolbox.tool.tlc.ui</module>
-		<module>toolbox/org.lamport.tla.toolbox.product.standalone</module>
-
-		<!-- Junit tests -->
-		<module>toolbox/org.lamport.tla.toolbox.test</module>
-		<module>toolbox/org.lamport.tla.toolbox.tool.tlc.test</module>
-		<module>toolbox/org.lamport.tla.toolbox.tool.tlc.ui.test</module>
-
-		<!-- SWTBot tests -->
-		<module>toolbox/org.lamport.tla.toolbox.uitest</module>
-		<module>toolbox/org.lamport.tla.toolbox.tool.tla2tex.uitest</module>
-		<module>toolbox/org.lamport.tla.toolbox.tool.tlc.ui.uitest</module>
-
-		<!-- features -->
-		<module>tlatools/org.lamport.tlatools.feature</module>
-		<module>toolbox/org.lamport.tla.toolbox.feature.base</module>
-		<module>toolbox/org.lamport.tla.toolbox.feature.editor</module>
-		<module>toolbox/org.lamport.tla.toolbox.feature.jnlp</module>
-		<module>toolbox/org.lamport.tla.toolbox.feature.jclouds</module>
-		<module>toolbox/org.lamport.tla.toolbox.feature.help</module>
-		<module>toolbox/org.lamport.tla.toolbox.feature.prover</module>
-		<module>toolbox/org.lamport.tla.toolbox.feature.tla2tex</module>
-		<module>toolbox/org.lamport.tla.toolbox.feature.tlc</module>
-		<module>toolbox/org.lamport.tla.toolbox.feature.uitest</module>
-		<module>toolbox/org.lamport.tla.toolbox.feature.branding</module>
-		<module>toolbox/org.lamport.tla.toolbox.feature.standalone</module>
-
-		<!-- p2 repository for updates -->
-		<module>toolbox/org.lamport.tla.toolbox.p2repository</module>
-
-		<!-- product related -->
-		<module>toolbox/org.lamport.tla.toolbox.product.product</module>
-
 		<!-- Finally run UI tests on fully built product (AUT) -->
 <!--		<module>toolbox/org.lamport.tla.toolbox.product.uitest</module>-->
 	</modules>
@@ -95,16 +52,17 @@
 		<tycho-version>1.5.1</tycho-version>
 
 		<!-- no default here -->
-		<tycho.test.vm.argline>-Xmx500m -Xdebug -Xrunjdwp:transport=dt_socket,address=1044,server=y,suspend=n</tycho.test.vm.argline>
+		<tycho.test.vm.argline>-Xmx500m -Xdebug -Xrunjdwp:transport=dt_socket,address=1044,server=y,suspend=n
+		</tycho.test.vm.argline>
 		<tycho.test.vm.useUiThread>false</tycho.test.vm.useUiThread>
 
-        <!-- These properties define a dummy certificate store that is used unless the developer passes overwrites to maven -->
-        <!-- see http://stackoverflow.com/a/3620575 for how such an overwrite would look like. -->
-  	    <keystore.path>${project.basedir}/../../keystore</keystore.path>
-	    <keystore.alias>msr</keystore.alias>
-        <keystore.store.password>secret</keystore.store.password>
-        <keystore.key.password>secret</keystore.key.password>
-        <!--
+		<!-- These properties define a dummy certificate store that is used unless the developer passes overwrites to maven -->
+		<!-- see http://stackoverflow.com/a/3620575 for how such an overwrite would look like. -->
+		<keystore.path>${project.basedir}/../../keystore</keystore.path>
+		<keystore.alias>msr</keystore.alias>
+		<keystore.store.password>secret</keystore.store.password>
+		<keystore.key.password>secret</keystore.key.password>
+		<!--
           Set to the values below if the signature should include a timestamp. You want this for a release build
           because a timestamp makes sure the signature remains valid after the certificate expired.
           If you activate RFC3161, make sure the machine running the build has sufficient entropy available. Otherwise
@@ -112,9 +70,9 @@
           can help to collect entropy.
           <tsa.flag>-tsa</tsa.flag>
           <tsa.server>http://timestamp.comodoca.com</tsa.server>
-		 -->
-        <tsa.flag></tsa.flag>
-        <tsa.server></tsa.server>
+         -->
+		<tsa.flag></tsa.flag>
+		<tsa.server></tsa.server>
 
 		<!-- Report into the tlaplus organization at SonarQube. -->
 		<!-- Organizations support reporting different branches. -->
@@ -131,6 +89,8 @@
 			unpacking if it is occurring on mac - the AUT unpacks out of
 			the ZIP ok on Linux and Windows-->
 		<jdk-bundle-plugin-version>14.0.1.7</jdk-bundle-plugin-version>
+		<maven.compiler.source>18</maven.compiler.source>
+		<maven.compiler.target>18</maven.compiler.target>
 	</properties>
 
 	<build>
@@ -270,23 +230,6 @@
 				    <!-- However, sometimes OSGi-fied dependencies are made available on      -->
 				    <!-- Maven Central.  'pomDependencies' makes this build look there too.    -->
 				    <!-- https://wiki.eclipse.org/Tycho/Target_Platform#.22POM_dependencies_consider.22 -->
-                    <pomDependencies>consider</pomDependencies>
-					<!-- recommended: use p2-based target platform resolver -->
-					<resolver>p2</resolver>
-					<ignoreTychoRepositories>true</ignoreTychoRepositories>
-					<!-- Include the pack200 artifacts in the p2 repository. This increases
-						the size of the p2 repository (jars + pack.gz), but reduces the load on the
-						server hosting the repository as clients download the compressed pack.gz files. -->
-					<includePackedArtifacts>true</includePackedArtifacts>
-					<!-- use existing target platform definition -->
-					<target>
-					 <artifact>
-					    <groupId>tlatoolbox</groupId>
-					    <artifactId>org.lamport.tla.toolbox.product.product</artifactId>
-					    <version>1.4.0-SNAPSHOT</version>
-					    <classifier>TLAToolbox</classifier>
-					 </artifact>
-					</target>
 
 					<!-- Need to specify mininum Java version. This defines what
 					     java.* packages are available during dependency resolution.
@@ -294,33 +237,6 @@
 					     package that is indirectly referenced by the toolbox (indirectly via
 					     org.apache.mina.core).
 					     see http://dev.eclipse.org/mhonarc/lists/cbi-dev/msg00166.html -->
-		 			<executionEnvironment>JavaSE-11</executionEnvironment>
-
-					<!-- configure the p2 target environments for multi-platform build -->
-					<environments>
-
-						<!-- Linux -->
-						<environment>
-							<os>linux</os>
-							<ws>gtk</ws>
-							<arch>x86_64</arch>
-						</environment>
-
-						<!-- Windows -->
-						<environment>
-							<os>win32</os>
-							<ws>win32</ws>
-							<arch>x86_64</arch>
-						</environment>
-
-						<!-- Mac -->
-						<environment>
-							<os>macosx</os>
-							<ws>cocoa</ws>
-							<arch>x86_64</arch>
-						</environment>
-
-					</environments>
 				</configuration>
 			</plugin>
 		</plugins>

@@ -9,6 +9,7 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -28,6 +29,7 @@ import java.util.regex.Pattern;
 
 import model.InJarFilenameToStream;
 import model.ModelInJar;
+import net.automatalib.automaton.fsa.CompactNFA;
 import tlc2.debug.TLCDebugger;
 import tlc2.output.EC;
 import tlc2.output.ErrorTraceMessagePrinterRecorder;
@@ -204,6 +206,46 @@ public class TLC {
      */
     private TraceExplorationSpec teSpec;
     
+    private LTSBuilder ltsBuilder;
+    
+    // thank you https://stackoverflow.com/questions/9882487/how-can-i-disable-system-out-for-speed-in-java
+    private static final PrintStream SUPPRESS_ALL_OUTPUT_PRINT_STREAM =
+    		new java.io.PrintStream(new java.io.OutputStream() {
+        	    @Override public void write(int b) {}
+        	}) {
+        	    @Override public void flush() {}
+        	    @Override public void close() {}
+        	    @Override public void write(int b) {}
+        	    @Override public void write(byte[] b) {}
+        	    @Override public void write(byte[] buf, int off, int len) {}
+        	    @Override public void print(boolean b) {}
+        	    @Override public void print(char c) {}
+        	    @Override public void print(int i) {}
+        	    @Override public void print(long l) {}
+        	    @Override public void print(float f) {}
+        	    @Override public void print(double d) {}
+        	    @Override public void print(char[] s) {}
+        	    @Override public void print(String s) {}
+        	    @Override public void print(Object obj) {}
+        	    @Override public void println() {}
+        	    @Override public void println(boolean x) {}
+        	    @Override public void println(char x) {}
+        	    @Override public void println(int x) {}
+        	    @Override public void println(long x) {}
+        	    @Override public void println(float x) {}
+        	    @Override public void println(double x) {}
+        	    @Override public void println(char[] x) {}
+        	    @Override public void println(String x) {}
+        	    @Override public void println(Object x) {}
+        	    @Override public java.io.PrintStream printf(String format, Object... args) { return this; }
+        	    @Override public java.io.PrintStream printf(java.util.Locale l, String format, Object... args) { return this; }
+        	    @Override public java.io.PrintStream format(String format, Object... args) { return this; }
+        	    @Override public java.io.PrintStream format(java.util.Locale l, String format, Object... args) { return this; }
+        	    @Override public java.io.PrintStream append(CharSequence csq) { return this; }
+        	    @Override public java.io.PrintStream append(CharSequence csq, int start, int end) { return this; }
+        	    @Override public java.io.PrintStream append(char c) { return this; }
+        	};
+    
     /**
      * Initialization
      */
@@ -229,6 +271,45 @@ public class TLC {
         fpSetConfiguration = new FPSetConfiguration();
 
         params = new HashMap<>();
+        
+        ltsBuilder = null;
+	}
+	
+	public CompactNFA<String> createLTS(final String tla, final String cfg, boolean ignoreErrors) {
+    	PrintStream origPrintStream = System.out;
+    	System.setOut(TLC.SUPPRESS_ALL_OUTPUT_PRINT_STREAM);
+    	
+    	ltsBuilder = new LTSBuilder(ignoreErrors);
+
+		final String[] args = new String[] {"-deadlock", "-config", cfg, tla};
+        if (!this.handleParameters(args)) {
+            System.exit(1);
+        }
+        
+        if (!this.checkEnvironment()) {
+            System.exit(1);
+        }
+		
+		final String dir = FileUtil.parseDirname(this.getMainFile());
+		if (!dir.isEmpty()) {
+			this.setResolver(new SimpleFilenameToStream(dir));
+		} else {
+			this.setResolver(new SimpleFilenameToStream());
+		}
+		
+		try {
+			tool = new FastTool(mainFile, configFile, resolver, params);
+		}
+		catch (Exception e) {
+			System.err.println("Error loading specification \"" + tla + "\" with config file \"" + cfg + "\"");
+			throw e;
+		}
+		
+		final int errorCode = this.process();
+        
+        System.setOut(origPrintStream);
+        
+        return ltsBuilder.toNFA();
 	}
 
     /*
@@ -1277,7 +1358,7 @@ public class TLC {
                 {
 					TLCGlobals.mainChecker = new ModelChecker(tool, metadir, stateWriter, deadlock, fromChkpt,
 							FPSetFactory.getFPSetInitialized(fpSetConfiguration, metadir, new File(mainFile).getName()),
-							startTime);
+							startTime, ltsBuilder);
 					modelCheckerMXWrapper = new ModelCheckerMXWrapper((ModelChecker) TLCGlobals.mainChecker, this);
 					result = TLCGlobals.mainChecker.modelCheck();
                 } else
