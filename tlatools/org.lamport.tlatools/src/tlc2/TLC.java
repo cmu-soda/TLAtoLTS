@@ -281,7 +281,7 @@ public class TLC {
     	
     	ltsBuilder = new LTSBuilder(ignoreErrors);
 
-		final String[] args = new String[] {"-deadlock", "-config", cfg, tla};
+		final String[] args = new String[] {"-deadlock", "-noGenerateSpecTE", "-config", cfg, tla};
         if (!this.handleParameters(args)) {
             System.exit(1);
         }
