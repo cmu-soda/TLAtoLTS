@@ -123,6 +123,9 @@ public class LTSBuilder {
     	
     	@Override
     	public int hashCode() {
+    		if (this.dest == null) {
+        		return this.src.hashCode() * 11 + this.act.hashCode();
+    		}
     		return this.src.hashCode() * 11 + this.act.hashCode() * 7 + this.dest.hashCode();
     	}
     }
