@@ -35,6 +35,7 @@ import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.Iterator;
+import java.util.stream.Collectors;
 
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -48,6 +49,7 @@ import tla2sany.st.TreeNode;
 import tla2sany.utilities.Strings;
 import tla2sany.utilities.Vector;
 import tla2sany.xml.SymbolContext;
+import tlc2.Utils;
 import tlc2.tool.BuiltInOPs;
 import util.UniqueString;
 import util.WrongInvocationException;
@@ -593,6 +595,73 @@ public class OpDefNode extends OpDefOrDeclNode
     this.stepNode = step ;
     st.addSymbol(us, this);
    }
+  
+
+  public String toTLA() {
+	  // if the top level value of the def is a conjunct list or LET-IN then pretty format it
+	  final SemanticNode[] children = getChildren();
+	  if (children != null && children.length == 1) {
+		  final SemanticNode child = children[0];
+		  if (child.getKind() == OpApplKind) {
+			  final OpApplNode childOpAppl = (OpApplNode) child;
+			  final SymbolNode opNode = childOpAppl.getOperator();
+			  final String opKey = opNode.getName().toString();
+			  if (opKey.equals("$ConjList") || opKey.equals("$DisjList") || opKey.equals("$BoundedExists")) {
+				  return toTLA(true);
+			  }
+		  }
+		  else if (child.getKind() == LetInKind) {
+			  return toTLA(true);
+		  }
+	  }
+	  // otherwise, eschew pretty formatting
+	  return toTLA(false);
+  }
+  
+  @Override
+  protected String toTLA(boolean pretty) {
+	  // TODO this only works for user def's
+	  final String name = this.getName().toString();
+	  final String body = this.getBody().toTLA(pretty);
+	  final String defStr = pretty ? " ==\n" : " == ";
+	  
+	  if (this.params == null || this.params.length == 0) {
+		  return name + defStr + body;
+	  }
+	  else {
+		  final String params = Utils.toArrayList(this.params)
+				  .stream()
+				  .map(p -> p.getName().toString())
+				  .collect(Collectors.joining(","));
+		  return name + "(" + params + ")" + defStr + body;
+	  }
+  }
+  
+  public void addConjunct(final String conjunct) {
+	  final int numNewOps = 1;
+	  int idx = 0;
+	  ExprOrOpArgNode[] ops = new ExprOrOpArgNode[1 + numNewOps];
+	  ops[idx++] = this.getBody();
+	  
+	  // if the body of this def node is a conj list, just merge the new conjuncts with the existing list
+	  if (this.getBody() instanceof OpApplNode) {
+		  final OpApplNode oan = (OpApplNode) this.getBody();
+		  final boolean bodyIsConj = oan.getOperator().getName().toString().equals("$ConjList");
+		  if (bodyIsConj) {
+			  ops = new ExprOrOpArgNode[oan.operands.length + numNewOps];
+			  for (idx = 0; idx < oan.operands.length; ++idx) {
+				  ops[idx] = oan.operands[idx];
+			  }
+		  }
+	  }
+	  
+	  ops[idx++] = new RawTlaNode(conjunct, this.stn);
+	  
+	  // change the child to be the new conjunct
+	  this.body = new OpApplNode(UniqueString.of("$ConjList"), ops, this.stn, null);
+  }
+  
+  
   /*************************************************************************
   * The methods that return or check properties of the node.               *
   *************************************************************************/

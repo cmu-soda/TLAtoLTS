@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -218,9 +219,11 @@ public class Utils {
     	return s.iterator().next();
     }
     
-    public static <T> Set<T> setOf(T elem) {
+    public static <T> Set<T> setOf(T... elems) {
     	Set<T> s = new HashSet<>();
-    	s.add(elem);
+    	for (T e : elems) {
+        	s.add(e);
+    	}
     	return s;
     }
 	
@@ -269,6 +272,18 @@ public class Utils {
     	}
     	return String.join(", ", varArrowList);
     }
+    
+    public static <T> List<T> listOf(T elem) {
+    	List<T> l = new ArrayList<>();
+    	l.add(elem);
+    	return l;
+    }
+    
+    public static <T> List<T> append(List<T> l1, List<T> l2) {
+    	List<T> l = new ArrayList<>(l1);
+    	l.addAll(l2);
+    	return l;
+    }
 
     public static <T> ArrayList<T> toArrayList(Set<T> src) {
     	ArrayList<T> dst = new ArrayList<T>();
@@ -280,6 +295,14 @@ public class Utils {
 
     public static <T> ArrayList<T> toArrayList(T[] src) {
     	ArrayList<T> dst = new ArrayList<T>();
+    	for (int i = 0; i < src.length; ++i) {
+    		dst.add(src[i]);
+    	}
+    	return dst;
+    }
+
+    public static <T> Set<T> toSet(T[] src) {
+    	Set<T> dst = new HashSet<T>();
     	for (int i = 0; i < src.length; ++i) {
     		dst.add(src[i]);
     	}
@@ -345,6 +368,20 @@ public class Utils {
     	throw new RuntimeException("Unable to find the last line in the TLA+ spec!");
     }
     
+    public static <K,V> Map<K,V> mergeMapsOrError(Map<K,V> map1, Map<K,V> map2) {
+    	// make sure the two maps agree on the value of any mutual keys
+    	final Set<K> mutualKeys = intersection(map1.keySet(), map2.keySet());
+    	for (final K key : mutualKeys) {
+    		assertTrue(map1.get(key).equals(map2.get(key)), "Attempting to merge maps with different values for key: " + key);
+    	}
+    	// merge the maps
+    	HashMap<K,V> merged = new HashMap<>(map1);
+    	for (final Map.Entry<K,V> entry : merged.entrySet()) {
+    		merged.put(entry.getKey(), entry.getValue());
+    	}
+    	return merged;
+    }
+    
     public static void printStringArr(ArrayList<String> arr) {
     	for (String s : arr) {
     		System.out.println(s);
@@ -355,6 +392,14 @@ public class Utils {
     	if (verbose) {
     		System.out.println(msg);
     	}
+    }
+    
+    public static boolean isIntegerString(final String str) {
+    	try {
+    		Integer.parseInt(str);
+    		return true;
+    	} catch (NumberFormatException e) {}
+    	return false;
     }
     
     // thanks https://stackoverflow.com/questions/2406121/how-do-i-escape-a-string-in-java
@@ -462,6 +507,10 @@ public class Utils {
 	      e.printStackTrace();
 	    }
     	return lines;
+    }
+    
+    public static void deleteFile(String file) {
+		new File(file).delete();
     }
 	
     public static String asJson(Map<String,String> jsonStrs, Map<String,List<String>> jsonLists) {

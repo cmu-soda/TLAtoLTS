@@ -42,6 +42,11 @@ public class StringNode extends ExprNode implements ExploreNode {
 //      this.levelChecked = 99 ;
     }
   }
+  
+  @Override
+  protected String toTLA(boolean pretty) {
+	  return "\"" + this.value.toString() + "\"";
+  }
 
   /**
    * Returns the UniqueString representation of the string.

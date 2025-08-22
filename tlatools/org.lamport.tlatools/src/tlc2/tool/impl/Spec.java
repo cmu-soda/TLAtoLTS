@@ -366,6 +366,14 @@ abstract class Spec
         return specProcessor.getAssumptionIsAxiom();
     }
     
+    public String[] getVarNames() {
+    	return specProcessor.getVarNames();
+    }
+    
+    public String[] getModuleNames() {
+    	return specProcessor.getModuleNames();
+    }
+    
     /**
      * This method gets the value of a symbol from the environment. We
      * look up in the context c, its tool object, and the state s.

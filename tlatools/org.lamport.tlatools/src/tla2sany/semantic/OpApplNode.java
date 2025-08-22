@@ -21,6 +21,7 @@ import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.List;
 import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -31,6 +32,7 @@ import tla2sany.parser.SyntaxTreeNode;
 import tla2sany.st.TreeNode;
 import tla2sany.utilities.Strings;
 import tla2sany.xml.SymbolContext;
+import tlc2.Utils;
 import tlc2.tool.BuiltInOPs;
 import tlc2.value.ITupleValue;
 import tlc2.value.IValue;
@@ -226,7 +228,433 @@ public class OpApplNode extends ExprNode implements ExploreNode {
     this.operator = Context.getGlobalContext().getSymbol(us);
      // operator.match( this, mn );
   }
+  
+  @Override
+  protected String toTLA(boolean pretty) {
+	  final SymbolNode opNode = this.getOperator();
+	  final String opKey = opNode.getName().toString();
+	  final String op = keyToOp(opKey);
+	  
+	  if (getChildren() == null || (getChildren().length == 0 && !op.contains("$"))) {
+		  return op;
+	  }
+	  else {
+		  // infix ops
+		  if (isInfixOp(opKey)) {
+			  final boolean usePretty = pretty && (op.equals("/\\") || op.equals("\\/"));
+			  final String prefix = usePretty ? op + " " : "";
+			  final String paddedOp = usePretty ? "\n" + op + " " : " " + op + " ";
+			  final String childrenToTLA = Utils.toArrayList(getChildren())
+			  	.stream()
+			  	.map(c -> c.toTLA(false))
+			  	.collect(Collectors.joining(paddedOp));
+			  if (!usePretty && getChildren().length > 1 && !dontUseParens(op)) {
+				  return "(" + prefix + childrenToTLA + ")";
+			  }
+			  else {
+				  return prefix + childrenToTLA;
+			  }
+		  }
+		  
+		  // bounded quants + CHOOSE
+		  else if (isBoundedQuant(opKey) || isBoundedChoose(opKey)) {
+			  final FormalParamNode[][] paramsPerDomain = getBdedQuantSymbolLists();
+			  final ExprNode[] domainNodes = this.ranges;
+			  ArrayList<String> declList = new ArrayList<>();
+			  Utils.assertTrue(paramsPerDomain.length == domainNodes.length, "Length mismatch in bounded quant/choose between domains and params!");
+			  
+			  for (int i = 0; i < domainNodes.length; ++i) {
+				  final String domain = domainNodes[i].toTLA(false);
+				  final String qvars = Utils.toArrayList(paramsPerDomain[i])
+						  .stream()
+						  .map(p -> p.getName().toString())
+						  .collect(Collectors.joining(","));
+				  final String decl = qvars + " \\in " + domain;
+				  declList.add(decl);
+			  }
 
+			  Utils.assertTrue(operands.length > 0, "Bounded quant/choose should have at least one operand for the body!");
+			  final String body = operands[0].toTLA(pretty);
+			  final String quantMatrixSep = pretty ? " :\n" : " : ";
+			  final String decls = String.join(", ", declList);
+			  
+			  if (pretty) {
+				  return op + " " + decls + quantMatrixSep + body;
+			  }
+			  else {
+				  return "(" + op + " " + decls + quantMatrixSep + body + ")";
+			  }
+		  }
+		  
+		  // prime op
+		  else if (isPrimeOp(opKey)) {
+			  Utils.assertTrue(getChildren().length == 1, "Prime op should only be applied to a single arg!");
+			  return getChildren()[0].toTLA(false) + opKey;
+		  }
+
+		  // UNCHANGED op
+		  else if (isUnchangedOp(opKey)) {
+			  Utils.assertTrue(getChildren().length == 1, "UNCHANGED op should only be applied to a single arg!");
+			  return opKey + " " + getChildren()[0].toTLA(false);
+		  }
+
+		  // logical NOT op
+		  else if (isNotOp(opKey)) {
+			  Utils.assertTrue(getChildren().length == 1, "~ op should only be applied to a single arg!");
+			  return op + "(" + getChildren()[0].toTLA(false) + ")";
+		  }
+		  
+		  // tuples
+		  else if (isTupleOp(opKey)) {
+			  final String childrenToTLA = Utils.toArrayList(getChildren())
+			  	.stream()
+			  	.map(c -> c.toTLA(false))
+			  	.collect(Collectors.joining(","));
+			  return "<<" + childrenToTLA + ">>";
+		  }
+		  
+		  // set enumeration op
+		  else if (isSetEnumerateOp(opKey)) {
+			  final String childrenToTLA = Utils.toArrayList(getChildren())
+			  	.stream()
+			  	.map(c -> c.toTLA(false))
+			  	.collect(Collectors.joining(","));
+			  return "{" + childrenToTLA + "}";
+		  }
+		  
+		  // indexing into functions and records
+		  else if (isFunctionOrRecordIndex(opKey)) {
+			  // whether or not we use [] (for functions) or . (for records) depends on whether
+			  // an entry has quotes. this is pretty crazy, but see OpDefNode.java:121 for an explanation
+			  // (this only occurs within an EXCEPT).
+			  final String childrenToTLA = Utils.toArrayList(getChildren())
+					  	.stream()
+					  	.map(c -> c.toTLA(false))
+					  	.map(c -> {
+					  		// if <c> contains a quote, then it should be treated like a record
+					  		if (c.contains("\"")) {
+					  			return "." + c;
+					  		}
+					  		// otherwise, if <c> doesn't have a quote, it should be treated like a function
+					  		return "[" + c + "]";
+					  	})
+					  	.collect(Collectors.joining(""));
+			  return childrenToTLA;
+		  }
+		  
+		  // record constructor
+		  else if (isRcdConstructor(opKey)) {
+			  final String childrenToTLA = Utils.toArrayList(getChildren())
+					  	.stream()
+					  	.map(r -> r.toTLA(false))
+					  	.collect(Collectors.joining(","));
+			  return "[" + childrenToTLA + "]";
+		  }
+		  
+		  // function application op
+		  else if (isFcnApply(opKey)) {
+			  switch (getChildren().length) {
+			  case 1:
+				  // state variable
+				  return getChildren()[0].toTLA(false);
+			  case 2:
+				  // function application
+				  final String func = getChildren()[0].toTLA(false);
+				  final String args = getChildren()[1].toTLA(false);
+				  return func + "[" + args + "]";
+			  default:
+				  Utils.assertTrue(false, "Function applications must have 1 or 2 args!");
+				  return null;
+			  }
+		  }
+		  
+		  // EXCEPT op
+		  else if (isExcept(opKey)) {
+			  Utils.assertTrue(getChildren().length == 2, "EXCEPT op must have exactly 2 args!");
+			  final String func = getChildren()[0].toTLA(false);
+			  final String exception = getChildren()[1].toTLA(false);
+			  return "[" + func + " EXCEPT!" + exception + "]";
+		  }
+		  
+		  // pair, I guess an equality?
+		  else if (isPair(opKey)) {
+			  Utils.assertTrue(getChildren().length == 2, "Pair op must have exactly 2 args!");
+			  final boolean isRecord = getChildren()[0].toTLA(false).matches("^\".*\"$"); // hacky way of detecting records
+			  final String assignmentOperator = isRecord ? " |-> " : " = ";
+			  final String lhs = getChildren()[0].toTLA(false).replace("\"", ""); // remove quotes for record keys
+			  final String rhs = getChildren()[1].toTLA(false);
+			  return lhs + assignmentOperator + rhs;
+		  }
+		  
+		  // function constructor, I'll assume a constant value for now
+		  else if (isFcnConstructor(opKey)) {
+			  Utils.assertTrue(getChildren().length == 2, "We assume function constructors have exactly 2 args!");
+			  final FormalParamNode[][] paramsPerDomain = getBdedQuantSymbolLists();
+			  Utils.assertTrue(paramsPerDomain.length == 1, "We currently only support quantification over a single domain at a time.");
+			  final FormalParamNode[] params = paramsPerDomain[0];
+			  
+			  final String domain = getChildren()[0].toTLA(false);
+			  final String qvars = Utils.toArrayList(params)
+					  .stream()
+					  .map(p -> p.getName().toString())
+					  .collect(Collectors.joining(","));
+			  final String val = getChildren()[1].toTLA(false);
+			  return "[" + qvars + " \\in " + domain + " |-> " + val + "]";
+		  }
+		  
+		  // set of functions
+		  else if (isSetOfFcns(opKey)) {
+			  Utils.assertTrue(getChildren().length == 2, "We assume that function sets have exactly 2 args!");
+			  final String domain = getChildren()[0].toTLA(false);
+			  final String range = getChildren()[1].toTLA(false);
+			  return "[" + domain + " -> " + range + "]";
+		  }
+		  
+		  // set of records
+		  else if (isSetOfRcds(opKey)) {
+			  final String body = Utils.toArrayList(this.operands)
+					  .stream()
+					  .map(r -> r.toTLA(false))
+					  .map(r -> r.replace("=", ":"))
+					  .collect(Collectors.joining(","));
+			  return "[" + body + "]";
+		  }
+		  
+		  // set comprehension (with domain first, i.e. {x \in D | C(x)})
+		  else if (isSubsetOf(opKey)) {
+			  Utils.assertTrue(getChildren().length == 2, "SubsetOf (set comprehension) must have exactly 2 args!");
+			  final FormalParamNode[][] paramsPerDomain = getBdedQuantSymbolLists();
+			  Utils.assertTrue(paramsPerDomain.length == 1, "We currently only support quantification over a single domain at a time.");
+			  final FormalParamNode[] params = paramsPerDomain[0];
+			  
+			  final boolean qvarsAreInATuple = tupleOrs.length > 0 && tupleOrs[0];
+			  final String rawQvars = Utils.toArrayList(params)
+					  .stream()
+					  .map(p -> p.getName().toString())
+					  .collect(Collectors.joining(","));
+			  final String qvars = qvarsAreInATuple ? "<<" + rawQvars + ">>" : rawQvars;
+			  final String domain = getChildren()[0].toTLA(false);
+			  final String body = getChildren()[1].toTLA(false);
+			  return "{ " + qvars + " \\in " + domain + " : " + body + " }";
+		  }
+		  
+		  // set comprehension (with domain second, i.e. {E(x) | x \in D})
+		  else if (isSetOfAll(opKey)) {
+			  Utils.assertTrue(getChildren().length == 2, "SetOfAll (set comprehension) must have exactly 2 args!");
+			  final FormalParamNode[][] paramsPerDomain = getBdedQuantSymbolLists();
+			  Utils.assertTrue(paramsPerDomain.length == 1, "We currently only support quantification over a single domain at a time.");
+			  final FormalParamNode[] params = paramsPerDomain[0];
+			  
+			  final String domain = getChildren()[0].toTLA(false);
+			  final String qvars = Utils.toArrayList(params)
+					  .stream()
+					  .map(p -> p.getName().toString())
+					  .collect(Collectors.joining(","));
+			  final String expr = getChildren()[1].toTLA(false);
+			  return "{ " + expr + " : " + qvars + " \\in " + domain + " }";
+		  }
+		  
+		  // . operator for records
+		  else if (isRcdSelect(opKey)) {
+			  Utils.assertTrue(getChildren().length == 2, "RcdSelect (.) must have exactly 2 args!");
+			  final String lhs = getChildren()[0].toTLA(false);
+			  final String rhs = getChildren()[1].toTLA(false).replace("\"", ""); // remove quotes from the field
+			  return lhs + "." + rhs;
+		  }
+		  
+		  // IF-THEN-ELSE
+		  else if (isITE(opKey)) {
+			  Utils.assertTrue(getChildren().length == 3, "IF-THEN-ELSE must have exactly 3 args!");
+			  final String cond = getChildren()[0].toTLA(false);
+			  final String tCond = getChildren()[1].toTLA(false);
+			  final String fCond = getChildren()[2].toTLA(false);
+			  return "IF " + cond + " THEN " + tCond + " ELSE " + fCond;
+		  }
+		  
+		  // inside of the [] temporal op
+		  else if (isSquareAct(opKey)) {
+			  Utils.assertTrue(getChildren().length == 2, "SquareAct op should have exactly 2 args!");
+			  final String body = getChildren()[0].toTLA(false);
+			  final String stutVars = getChildren()[1].toTLA(false);
+			  return "[" + body + "]_" + stutVars;
+		  }
+		  
+		  // [] temporal op
+		  else if (isAlwaysTemporalOp(opKey)) {
+			  Utils.assertTrue(getChildren().length == 1, "[] op should have exactly 1 arg!");
+			  final String body = getChildren()[0].toTLA(false);
+			  return op + body;
+		  }
+		  
+		  // either:
+		  // 1) this is an operator call or
+		  // 2) this is something unexpected, and we print it like an operator call
+		  else {
+			  final String childrenToTLA = Utils.toArrayList(getChildren())
+					  	.stream()
+					  	.map(c -> c.toTLA(false))
+					  	.collect(Collectors.joining(","));
+			  return opKey + "(" + childrenToTLA + ")";
+		  }
+	  }
+  }
+  
+  private static boolean isPrimeOp(final String key) {
+	  return key.equals("'");
+  }
+  
+  private static boolean isUnchangedOp(final String key) {
+	  return key.equals("UNCHANGED");
+  }
+  
+  private static boolean isNotOp(final String key) {
+	  return key.equals("\\lnot");
+  }
+  
+  private static boolean isTupleOp(final String key) {
+	  return key.equals("$Tuple");
+  }
+  
+  private static boolean isSetEnumerateOp(final String key) {
+	  return key.equals("$SetEnumerate");
+  }
+  
+  private static boolean isFunctionOrRecordIndex(final String key) {
+	  return key.equals("$Seq");
+  }
+  
+  private static boolean isRcdConstructor(final String key) {
+	  return key.equals("$RcdConstructor");
+  }
+  
+  private static boolean isFcnApply(final String key) {
+	  return key.equals("$FcnApply");
+  }
+  
+  private static boolean isExcept(final String key) {
+	  return key.equals("$Except");
+  }
+  
+  private static boolean isPair(final String key) {
+	  return key.equals("$Pair");
+  }
+  
+  private static boolean isFcnConstructor(final String key) {
+	  return key.equals("$FcnConstructor");
+  }
+  
+  private static boolean isSetOfFcns(final String key) {
+	  return key.equals("$SetOfFcns");
+  }
+  
+  private static boolean isSetOfRcds(final String key) {
+	  return key.equals("$SetOfRcds");
+  }
+  
+  private static boolean isSubsetOf(final String key) {
+	  return key.equals("$SubsetOf");
+  }
+  
+  private static boolean isSetOfAll(final String key) {
+	  return key.equals("$SetOfAll");
+  }
+  
+  private static boolean isRcdSelect(final String key) {
+	  return key.equals("$RcdSelect");
+  }
+  
+  private static boolean isITE(final String key) {
+	  return key.equals("$IfThenElse");
+  }
+  
+  private static boolean isSquareAct(final String key) {
+	  return key.equals("$SquareAct");
+  }
+  
+  private static boolean isAlwaysTemporalOp(final String key) {
+	  return key.equals("[]");
+  }
+  
+  private static boolean isBoundedChoose(final String key) {
+	  return key.equals("$BoundedChoose");
+  }
+  
+  private static boolean isBoundedQuant(final String key) {
+	  return key.equals("$BoundedExists")
+			  || key.equals("$BoundedForall");
+  }
+  
+  private static boolean dontUseParens(final String key) {
+	  return key.equals("=")
+			  || key.equals("/=")
+			  || key.equals("#")
+			  || key.equals(">")
+			  || key.equals("<")
+			  || key.equals(">=")
+			  || key.equals("<=")
+			  || key.equals("\\n");
+  }
+  
+  private static boolean isInfixOp(final String key) {
+	  return key.equals("=")
+			  || key.equals("/=")
+			  || key.equals("#")
+			  || key.equals(">")
+			  || key.equals("<")
+			  || key.equals(">=")
+			  || key.equals("<=")
+			  || key.equals("\\leq")
+			  || key.equals("\\geq")
+			  || key.equals("+")
+			  || key.equals("-")
+			  || key.equals("*")
+			  || key.equals("\\div")
+			  || key.equals("=>")
+			  || key.equals("$ConjList")
+			  || key.equals("$DisjList")
+			  || key.equals("$CartesianProd")
+			  || key.equals("\\")
+			  || key.equals("\\union")
+			  || key.equals("\\intersect")
+			  || key.equals("\\in")
+			  || key.equals("\\notin")
+			  || key.equals("\\land")
+			  || key.equals("\\lor");
+  }
+  
+  private static String keyToOp(final String key) {
+	  switch (key) {
+	  case "$ConjList":
+		  return "/\\";
+	  case "$DisjList":
+		  return "\\/";
+	  case "$CartesianProd":
+		  return "\\X";
+	  case "$BoundedExists":
+		  return "\\E";
+	  case "$BoundedForall":
+		  return "\\A";
+	  case "$BoundedChoose":
+		  return "CHOOSE";
+	  case "\\union":
+		  return "\\cup";
+	  case "\\intersect":
+		  return "\\cap";
+	  case "\\land":
+		  return "/\\";
+	  case "\\lor":
+		  return "\\/";
+	  case "\\lnot":
+		  return "~";
+	  case "\\leq":
+		  return "<=";
+	  case "\\geq":
+		  return ">=";
+	  default:
+		  return key;
+	  }
+  }
+  
   /**
    *  Returns the node identifying the operator of the operator
    *  application.  For example, for the expression A \cup B, this

@@ -114,6 +114,11 @@ public class InstanceNode extends LevelNode {
     this.module = module;
     this.substs = (substs != null ? substs : new Subst[0]);
   }
+  
+  @Override
+  public String toTLA(boolean pretty) {
+	  return this.getName().toString();
+  }
 
   public boolean isLocal() { return local ; }
 

@@ -5,6 +5,7 @@ package tla2sany.semantic;
 import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.Iterator;
+import java.util.stream.Collectors;
 
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -15,6 +16,7 @@ import tla2sany.st.TreeNode;
 import tla2sany.utilities.Strings;
 import tla2sany.utilities.Vector;
 import tla2sany.xml.SymbolContext;
+import tlc2.Utils;
 
 public class LetInNode extends ExprNode
 implements ExploreNode, LevelConstants {
@@ -59,6 +61,30 @@ implements ExploreNode, LevelConstants {
     this.insts = insts;
     this.body = bdy;
     this.context = ctext;
+  }
+  
+  @Override
+  protected String toTLA(boolean pretty) {
+	  pretty = true; // this seems to work better
+	  final boolean hasDefs = this.opDefs.length > 0;
+	  final int newIndents = hasDefs ? 2 : 0;
+	  
+	  final String tlaBodyRaw = this.getBody().toTLA(pretty);
+	  final int prevIndentCount = tlaBodyRaw.length() - tlaBodyRaw.stripLeading().length();
+	  final int indentCount = prevIndentCount + newIndents;
+	  final String indents = " ".repeat(indentCount);
+	  final String tlaBody = tlaBodyRaw.replace("\n", "\n" + indents);
+	  
+	  if (hasDefs) {
+		  final String defsStr = Utils.toArrayList(this.opDefs)
+				  .stream()
+				  .map(d -> d.toTLA(false))
+				  .collect(Collectors.joining("\n    "));
+		  return "LET " + defsStr + " IN\n" + indents + tlaBody;
+	  }
+	  else {
+		  return tlaBody;
+	  }
   }
 
   /**

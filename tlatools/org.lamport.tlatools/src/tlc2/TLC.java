@@ -26,6 +26,7 @@ import java.util.Set;
 import java.util.TimeZone;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import model.InJarFilenameToStream;
 import model.ModelInJar;
@@ -194,7 +195,7 @@ public class TLC {
     /**
      * Interface to retrieve model properties.
      */
-    private volatile Tool tool;
+    volatile Tool tool;
 
     /**
      * Records errors as TLC runs.
@@ -311,6 +312,29 @@ public class TLC {
         
         return ltsBuilder.toNFA();
 	}
+	
+	public List<String> constantsInSpec() {
+    	return this.tool.getModelConfig().getConstantsAsList()
+    		.stream()
+    		.filter(l -> l.size() == 2) // only retain constant assignments
+    		.map(l -> l.get(0)) // get the asignee (the constant)
+    		.collect(Collectors.toList());
+    }
+    
+    public Set<String> actionsInSpec() {
+    	final FastTool ft = (FastTool) this.tool;
+    	return Utils.toArrayList(ft.getActions())
+        		.stream()
+        		.map(a -> a.getName().toString())
+        		.collect(Collectors.toSet());
+    }
+    
+    public Set<String> stateVarsInSpec() {
+    	final FastTool ft = (FastTool) this.tool;
+    	return Utils.toArrayList(ft.getVarNames())
+        		.stream()
+        		.collect(Collectors.toSet());
+    }
 
     /*
      * This TLA checker (TLC) provides the following functionalities:
