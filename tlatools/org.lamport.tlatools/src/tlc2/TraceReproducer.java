@@ -183,7 +183,7 @@ public class TraceReproducer {
 			// delete the temporary CexTrace.tla and CexTrace.cfg files that we create
 			Runtime.getRuntime().exec(new String[]{"rm", "-f", traceInSpecTla});
 			Runtime.getRuntime().exec(new String[]{"rm", "-f", traceInSpecCfg});
-			Runtime.getRuntime().exec(new String[]{"rmdir", "states"});
+			//Runtime.getRuntime().exec(new String[]{"rmdir", "states"});
 			
 			// parse the output from TLC and find any invariants that were violated
 			final Pattern invPattern = Pattern.compile("Error: Invariant (.*) is violated\\.");
