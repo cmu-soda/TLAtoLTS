@@ -20,7 +20,8 @@ import tla2sany.semantic.OpDefNode;
 import tlc2.tool.impl.FastTool;
 
 public class TraceReproducer {
-	private static final String TLC_JAR_PATH = System.getProperty("user.home") + "/bin/tla2tools.jar";
+	private static final String TLC_LOC_VAR = "TLC_LOC";
+	private static final String TLC_JAR_PATH = System.getenv(TLC_LOC_VAR) != null ? System.getenv(TLC_LOC_VAR) : System.getProperty("user.home") + "/bin/tla2tools.jar";
     
 	/**
 	 * Returns a set of invariants (names) that are violated. Returns an empty set if no violations are found.
@@ -182,6 +183,7 @@ public class TraceReproducer {
 			// delete the temporary CexTrace.tla and CexTrace.cfg files that we create
 			Runtime.getRuntime().exec(new String[]{"rm", "-f", traceInSpecTla});
 			Runtime.getRuntime().exec(new String[]{"rm", "-f", traceInSpecCfg});
+			Runtime.getRuntime().exec(new String[]{"rmdir", "states"});
 			
 			// parse the output from TLC and find any invariants that were violated
 			final Pattern invPattern = Pattern.compile("Error: Invariant (.*) is violated\\.");
