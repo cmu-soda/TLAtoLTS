@@ -32,11 +32,6 @@ public class TraceReproducer {
 	 * @return
 	 */
 	public static Set<String> reproduceTrace(final List<String> trace, final String tla, final String cfg, final Set<String> globalAlphabet) {
-		final String tlaName = tla.replaceAll("\\.tla", "");
-		final String cfgName = cfg.replaceAll("\\.cfg", "");
-		final String tlaFile = tlaName + ".tla";
-		final String cfgFile = cfgName + ".cfg";
-		
 		// create a formula that says: at each time step i, we must take action i in <trace> (the given AlloyTrace)
 		final String cexIdxVar = "cexTraceIdx";
 		final String errVar = "err";
@@ -52,10 +47,10 @@ public class TraceReproducer {
 		
 		// use the original TLA+ file to construct the reproducer spec
 		TLC tlc = new TLC();
-		tlc.createLTS(tlaFile, cfgFile, false);
+		tlc.createLTS(tla, cfg, false);
 
     	final FastTool ft = (FastTool) tlc.tool;
-		final String moduleName = tlc.getModelName();
+		final String moduleName = tla.replaceAll("\\.tla", "").replaceAll("^.*/", ""); // strip the path/suffix from the file name
 		final ModuleNode mn = ft.getModule(moduleName);
 		final List<OpDefNode> moduleNodes = Utils.toArrayList(mn.getOpDefs())
 				.stream()
@@ -152,7 +147,7 @@ public class TraceReproducer {
         
         // create the config file for the TLA+ reproducer
         StringBuilder cfgBuilder = new StringBuilder();
-        final List<String> cfgLines = Utils.fileContents(cfgFile)
+        final List<String> cfgLines = Utils.fileContents(cfg)
         		.stream()
         		.filter(l -> !l.contains("SPECIFICATION"))
         		.collect(Collectors.toList());
