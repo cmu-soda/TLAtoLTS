@@ -14,7 +14,7 @@ public class Main {
         	final String cfg = args[1];
         	final boolean ignoreErrors = args.length == 3 && args[2].equals("--ignore-errs");
         	CompactNFA<String> lts = new TLC().createLTS(tla, cfg, ignoreErrors);
-        	System.out.println("Num states: " + lts.getStates().size());
+        	FSPVisitor.printFSP(lts, lts.getInputAlphabet());
         }
         else if (args.length == 4 && args[2].equals("--reproduce")) {
         	final String tla = args[0];

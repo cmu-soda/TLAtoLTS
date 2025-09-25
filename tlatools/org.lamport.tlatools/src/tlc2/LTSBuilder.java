@@ -3,6 +3,7 @@ package tlc2;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 import net.automatalib.alphabet.Alphabets;
@@ -116,17 +117,14 @@ public class LTSBuilder {
     			final LTSBTransition other = (LTSBTransition) o;
     			return this.src.equals(other.src) && 
     					this.act.equals(other.act) &&
-    					this.dest.equals(other.dest);
+    					(this.dest == other.dest || (this.dest!=null && other.dest!=null && this.dest.equals(other.dest)));
     		}
     		return false;
     	}
     	
     	@Override
     	public int hashCode() {
-    		if (this.dest == null) {
-        		return this.src.hashCode() * 11 + this.act.hashCode();
-    		}
-    		return this.src.hashCode() * 11 + this.act.hashCode() * 7 + this.dest.hashCode();
+    		return Objects.hash(this.src, this.act, this.dest);
     	}
     }
     
