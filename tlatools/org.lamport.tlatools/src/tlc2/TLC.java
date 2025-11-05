@@ -313,6 +313,47 @@ public class TLC {
         return ltsBuilder.toNFA();
 	}
 	
+	public CompactNFA<String> createLTS(final String tla, final String cfg, boolean ignoreErrors, final String metadir) {
+		if (metadir.isEmpty()) {
+			return createLTS(tla, cfg, ignoreErrors);
+		}
+		
+    	PrintStream origPrintStream = System.out;
+    	System.setOut(TLC.SUPPRESS_ALL_OUTPUT_PRINT_STREAM);
+    	
+    	ltsBuilder = new LTSBuilder(ignoreErrors);
+
+		final String[] args = new String[] {"-deadlock", "-noGenerateSpecTE", "-metadir", metadir, "-config", cfg, tla};
+        if (!this.handleParameters(args)) {
+            System.exit(1);
+        }
+        
+        if (!this.checkEnvironment()) {
+            System.exit(1);
+        }
+		
+		final String dir = FileUtil.parseDirname(this.getMainFile());
+		if (!dir.isEmpty()) {
+			this.setResolver(new SimpleFilenameToStream(dir));
+		} else {
+			this.setResolver(new SimpleFilenameToStream());
+		}
+		
+		try {
+			tool = new FastTool(mainFile, configFile, resolver, params);
+		}
+		catch (Exception e) {
+			System.err.println("Error loading specification \"" + tla + "\" with config file \"" + cfg + "\"");
+			throw e;
+		}
+		
+		final int errorCode = this.process();
+        
+        System.setOut(origPrintStream);
+        
+        return ltsBuilder.toNFA();
+	}
+	
 	public List<String> constantsInSpec() {
     	return this.tool.getModelConfig().getConstantsAsList()
     		.stream()
