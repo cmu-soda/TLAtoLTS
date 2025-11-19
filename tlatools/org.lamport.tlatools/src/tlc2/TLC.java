@@ -279,8 +279,6 @@ public class TLC {
 	public CompactNFA<String> createLTS(final String tla, final String cfg, boolean ignoreErrors) {
     	PrintStream origPrintStream = System.out;
     	System.setOut(TLC.SUPPRESS_ALL_OUTPUT_PRINT_STREAM);
-    	
-    	ltsBuilder = new LTSBuilder(ignoreErrors);
 
 		final String[] args = new String[] {"-deadlock", "-noGenerateSpecTE", "-config", cfg, tla};
         if (!this.handleParameters(args)) {
@@ -305,6 +303,12 @@ public class TLC {
 			System.err.println("Error loading specification \"" + tla + "\" with config file \"" + cfg + "\"");
 			throw e;
 		}
+    	
+    	final Set<String> alphabet = Utils.toArrayList(this.tool.getActions())
+    			.stream()
+    			.map(a -> a.actionNameWithParams())
+    			.collect(Collectors.toSet());
+    	ltsBuilder = new LTSBuilder(ignoreErrors, alphabet);
 		
 		final int errorCode = this.process();
         
@@ -320,8 +324,6 @@ public class TLC {
 		
     	PrintStream origPrintStream = System.out;
     	System.setOut(TLC.SUPPRESS_ALL_OUTPUT_PRINT_STREAM);
-    	
-    	ltsBuilder = new LTSBuilder(ignoreErrors);
 
 		final String[] args = new String[] {"-deadlock", "-noGenerateSpecTE", "-metadir", metadir, "-config", cfg, tla};
         if (!this.handleParameters(args)) {
@@ -346,6 +348,12 @@ public class TLC {
 			System.err.println("Error loading specification \"" + tla + "\" with config file \"" + cfg + "\"");
 			throw e;
 		}
+
+    	final Set<String> alphabet = Utils.toArrayList(this.tool.getActions())
+    			.stream()
+    			.map(a -> a.actionNameWithParams())
+    			.collect(Collectors.toSet());
+    	ltsBuilder = new LTSBuilder(ignoreErrors, alphabet);
 		
 		final int errorCode = this.process();
         

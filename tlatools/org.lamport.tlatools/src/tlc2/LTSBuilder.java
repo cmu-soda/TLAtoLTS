@@ -5,6 +5,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import net.automatalib.alphabet.Alphabets;
 import net.automatalib.automaton.fsa.CompactNFA;
@@ -17,12 +18,13 @@ public class LTSBuilder {
 	private Set<LTSBState> allStates = new HashSet<>();
 	private Set<LTSBTransition> goodTransitions = new HashSet<>();
 	private Set<LTSBTransition> badTransitions = new HashSet<>();
-	private Set<String> allActions = new HashSet<>();
 	private boolean initialError = false;
+	private Set<String> allActions;
     private boolean ignoreErrors;
     
-    public LTSBuilder(boolean ignoreErrors) {
+    public LTSBuilder(boolean ignoreErrors, final Set<String> alphabet) {
     	this.ignoreErrors = ignoreErrors;
+    	this.allActions = alphabet.stream().collect(Collectors.toSet()); // makes a copy
     }
 	
 	public boolean ignoreErrors() {
