@@ -76,6 +76,11 @@ public class AtNode extends ExprNode {
 //  private HashSet argLevelParams;
 
   @Override
+  protected String toTLA(boolean pretty) {
+    return "@";
+  }
+
+  @Override
   public final boolean levelCheck(int iter, Errors errors) {
     if (this.levelChecked >= iter) return true;
     this.levelChecked = iter;

@@ -368,12 +368,18 @@ public class OpApplNode extends ExprNode implements ExploreNode {
 			  }
 		  }
 		  
-		  // EXCEPT op
+		  // EXCEPT op. Operand 0 is the base expression; each later operand is one
+		  // $Pair substitution. $Seq/$Pair print the selector (quoted record fields
+		  // become ".field"), and this printer supplies the '!' before every clause.
 		  else if (isExcept(opKey)) {
-			  Utils.assertTrue(getChildren().length == 2, "EXCEPT op must have exactly 2 args!");
+			  Utils.assertTrue(getChildren().length >= 2, "EXCEPT op must have at least 2 args!");
 			  final String func = getChildren()[0].toTLA(false);
-			  final String exception = getChildren()[1].toTLA(false);
-			  return "[" + func + " EXCEPT!" + exception + "]";
+			  final String exceptions = Utils.toArrayList(getChildren())
+					  	.stream()
+					  	.skip(1)
+					  	.map(c -> c.toTLA(false))
+					  	.collect(Collectors.joining(", !"));
+			  return "[" + func + " EXCEPT!" + exceptions + "]";
 		  }
 		  
 		  // pair, I guess an equality?
