@@ -49,12 +49,16 @@ public class FileUtil
      * is already a basename, returns the empty string.
      */
     public static String parseDirname(String filename) {
-        int lastSep = filename.lastIndexOf(separatorChar);
-        if (lastSep == -1) {
-            // No parent directory.
+        // File accepts both separators on Windows, so a relative spec such as
+        // specs/Foo.tla still yields a parent when the native separator is '\'.
+        String parent = new File(filename).getParent();
+        if (parent == null || parent.isEmpty()) {
             return "";
         }
-        return filename.substring(0, lastSep + 1);
+        if (!parent.endsWith(separator)) {
+            parent = parent + separator;
+        }
+        return parent;
     }
 
     /**
@@ -377,7 +381,7 @@ public class FileUtil
         sourceFileName = name + TLAConstants.Files.TLA_EXTENSION;
 
         // module name is =somemod
-        sourceModuleName = name.substring(name.lastIndexOf(FileUtil.separator) + 1);
+        sourceModuleName = new File(name).getName();
 
         File sourceFile = resolver.resolve(sourceFileName, true);
         if (sourceFile != null && sourceFile.exists())
